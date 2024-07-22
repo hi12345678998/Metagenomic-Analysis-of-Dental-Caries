@@ -331,6 +331,10 @@ ggsave("../diversity/Simpson_Cl&CS",plot = p,device = "pdf",width = 3,height =3.
   library(vegan)
   library(ggplot2)
   library(ggthemes)
+  library(pairwiseAdonis)
+  library(ggpubr)
+  library(patchwork)
+
 # Load data
   otu <-read.csv("../data/241mp4_s.csv",row.names = 1)
   group <-read.csv("../data/241disease.profile.csv", sep=",",head=T,row.names = 1)
@@ -360,5 +364,19 @@ ggsave("../diversity/Simpson_Cl&CS",plot = p,device = "pdf",width = 3,height =3.
   p
   
   ggsave("../diversity/beta_Cl&CS2",plot = p,device = "pdf",width = 6,height =6,units = "in")
+
+#adonis_test_between_groups
+dune.pairwise.adonis <- pairwise.adonis(x=otu, factors=group$Group, 
+                                          sim.function = "vegdist",
+                                          sim.method = "bray",
+                                          p.adjust.m = "BH",
+                                          reduce = NULL,
+                                          perm = 999)
+tab2 <- ggtexttable(dune.pairwise.adonis[,c("pairs","R2","p.value","p.adjusted")], rows = NULL, 
+                      theme = ttheme("blank",base_size = 12)) %>% 
+    tab_add_hline(at.row = 1:2, row.side = "top", linewidth = 1.5)  %>% 
+    tab_add_hline(at.row = nrow(dune.pairwise.adonis)+1, row.side = "bottom", linewidth = 1)  
   
+  p + tab2  + plot_layout(design=c(area(1,1), area(2,1)))
+
   
