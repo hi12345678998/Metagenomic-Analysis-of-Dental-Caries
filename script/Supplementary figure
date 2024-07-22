@@ -1,0 +1,17 @@
+#load_package
+
+library(dplyr)
+library(psych)
+library(tibble)
+library(tidyr)
+library(ggpmisc)
+library(forcats)
+library(RColorBrewer)
+
+#Genus
+#load_data
+Bacteria_RPM<-read.csv("D://huihui/paper/241_G.csv",header =TRUE,row =1)
+colnames(Bacteria_RPM) <- sub("^X", "", colnames(Bacteria_RPM))
+Host<-data <- read.csv("D://huihui/paper/241_Group.csv", header = TRUE,row.names = 1)
+df_in_host<-Bacteria_RPM[rownames(Bacteria_RPM) %in% rownames(Host), ]
+host<-Host
