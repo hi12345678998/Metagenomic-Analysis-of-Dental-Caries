@@ -1,0 +1,397 @@
+#load_package
+library(tidyverse)
+
+#load_data_KEGG
+dat <-read.csv("../KEGG.csv",row.names = 1)
+colnames(dat) <- sub("^X", "", colnames(dat))
+rownames(dat) <- sub("^X", "", rownames(dat))
+cnt= apply(dat,1,function(x){sum(x)}) 
+sum(cnt<=0)
+dat=dat[which(cnt>0),]
+  
+conf <-read.csv("../142sample.profile.csv", sep=",",head=T,row.names = 1)
+rownames(conf) = unlist( lapply( strsplit(rownames(conf),"-",fixed=T),function(x){x[length(x)]} ) )
+nm=intersect(gsub("\"","",rownames(conf)),gsub("\"","",rownames(dat)))
+length(nm)
+  
+conf1=conf[match(nm,gsub("\"","",rownames(conf)) ),]
+dat1=dat[match(nm,gsub("\"","",rownames(dat)) ),]
+ 
+disease = conf1$disease
+disease[disease=="caries"]=1
+disease[disease=="healthy"]=0
+disease=as.numeric(disease)
+disease  
+  
+data = t(dat1)
+type=disease #0,1
+count=apply(data,1,function(x){sum(as.numeric(x)>0)})
+dim(data)*0.05
+data=data[count>10,]
+name=rownames(data)
+data1=t(scale(t(data)))
+data1[1:4,1:4]
+colnames(data1)
+
+logtest<-function(marker,outcome1){
+model = model=glm(outcome1~marker,family=binomial())
+coef(summary(model))["marker",c("Estimate","Std. Error","Pr(>|z|)")]
+  }
+  
+or1=apply(data1,1,function(x){logtest(as.numeric(x),type)})
+or1=t(or1)
+OR=exp(as.numeric(or1[,1]))
+lower=exp(as.numeric(or1[,1])-1.96*as.numeric(or1[,2]))
+uper=exp(as.numeric(or1[,1])+1.96*as.numeric(or1[,2]))
+or2=data.frame(round(OR,4),round(lower,4),round(uper,4),com=paste(round(OR,2),"(",round(lower,2),",",round(uper,2),")",sep=""))
+rownames(or2)<-rownames(data)
+num <- nrow(data)
+caries=type
+
+# result_KEGG
+
+res <- matrix(0,nrow=num,ncol=10)
+rownames(res) <- rownames(data)
+
+for(i in 1:num){
+    a <- as.numeric(data[i,])
+    res[i,1] <- wilcox.test(a[caries==1],a[caries==0])$p.value  # wilcox pvalue
+    r <- rank(a)
+    res[i,2] <- round(mean(r[caries==1],na.rm=T)) # group1 , mean rank
+    res[i,3] <- round(mean(r[caries==0],na.rm=T)) # group0 , mean rank
+    res[i,4] <- 1
+    if (res[i,3]>res[i,2]) res[i,4] <- 0 # enrich
+    if( res[i,4]==1) { #z-score
+      res[i,5]= round(qnorm((wilcox.test(a[caries==1],a[caries==0],exact=F)$p.value)/2),2)
+    }
+    res[i,6]= round( mean( a[caries==1]>0, na.rm=T ),4)  #group1, freq
+    res[i,7]=round( mean( a[caries==0]>0, na.rm=T ),4) # group0 , freq
+    res[i,8] <- round(mean(a[caries==1],na.rm=T),10) # group1, mean
+    res[i,9] <- round(mean(a[caries==0],na.rm=T),10) # group0 ,mean
+    res[i,10]=round( mean( a>1e-8, na.rm=T ),4) # group0 , freq
+  }
+
+  pv=res[,1]
+  fdr = p.adjust(pv,method="BH")
+  dat2=cbind(res,fdr)
+  colnames(dat2)[ncol(dat2)] <- "fdr"
+  
+  dat2 <- data.frame(RowName = rownames(dat2), dat2)
+  write.csv(dat2, "../komarker_CF&CS.csv", row.names = FALSE)  
+
+
+
+
+#load_data_metacyc
+dat <-read.csv("../metacyc.csv",row.names = 1)
+colnames(dat) <- sub("^X", "", colnames(dat))
+rownames(dat) <- sub("^X", "", rownames(dat))
+cnt= apply(dat,1,function(x){sum(x)}) 
+sum(cnt<=0)
+dat=dat[which(cnt>0),]
+  
+conf <-read.csv("../142sample.profile.csv", sep=",",head=T,row.names = 1)
+rownames(conf) = unlist( lapply( strsplit(rownames(conf),"-",fixed=T),function(x){x[length(x)]} ) )
+nm=intersect(gsub("\"","",rownames(conf)),gsub("\"","",rownames(dat)))
+length(nm)
+  
+conf1=conf[match(nm,gsub("\"","",rownames(conf)) ),]
+dat1=dat[match(nm,gsub("\"","",rownames(dat)) ),]
+ 
+disease = conf1$disease
+disease[disease=="caries"]=1
+disease[disease=="healthy"]=0
+disease=as.numeric(disease)
+disease  
+  
+data = t(dat1)
+type=disease #0,1
+count=apply(data,1,function(x){sum(as.numeric(x)>0)})
+dim(data)*0.05
+data=data[count>10,]
+name=rownames(data)
+data1=t(scale(t(data)))
+data1[1:4,1:4]
+colnames(data1)
+
+logtest<-function(marker,outcome1){
+model = model=glm(outcome1~marker,family=binomial())
+coef(summary(model))["marker",c("Estimate","Std. Error","Pr(>|z|)")]
+  }
+  
+or1=apply(data1,1,function(x){logtest(as.numeric(x),type)})
+or1=t(or1)
+OR=exp(as.numeric(or1[,1]))
+lower=exp(as.numeric(or1[,1])-1.96*as.numeric(or1[,2]))
+uper=exp(as.numeric(or1[,1])+1.96*as.numeric(or1[,2]))
+or2=data.frame(round(OR,4),round(lower,4),round(uper,4),com=paste(round(OR,2),"(",round(lower,2),",",round(uper,2),")",sep=""))
+rownames(or2)<-rownames(data)
+num <- nrow(data)
+caries=type
+
+# result_KEGG
+
+res <- matrix(0,nrow=num,ncol=10)
+rownames(res) <- rownames(data)
+
+for(i in 1:num){
+    a <- as.numeric(data[i,])
+    res[i,1] <- wilcox.test(a[caries==1],a[caries==0])$p.value  # wilcox pvalue
+    r <- rank(a)
+    res[i,2] <- round(mean(r[caries==1],na.rm=T)) # group1 , mean rank
+    res[i,3] <- round(mean(r[caries==0],na.rm=T)) # group0 , mean rank
+    res[i,4] <- 1
+    if (res[i,3]>res[i,2]) res[i,4] <- 0 # enrich
+    if( res[i,4]==1) { #z-score
+      res[i,5]= round(qnorm((wilcox.test(a[caries==1],a[caries==0],exact=F)$p.value)/2),2)
+    }
+    res[i,6]= round( mean( a[caries==1]>0, na.rm=T ),4)  #group1, freq
+    res[i,7]=round( mean( a[caries==0]>0, na.rm=T ),4) # group0 , freq
+    res[i,8] <- round(mean(a[caries==1],na.rm=T),10) # group1, mean
+    res[i,9] <- round(mean(a[caries==0],na.rm=T),10) # group0 ,mean
+    res[i,10]=round( mean( a>1e-8, na.rm=T ),4) # group0 , freq
+  }
+
+  pv=res[,1]
+  fdr = p.adjust(pv,method="BH")
+  dat2=cbind(res,fdr)
+  colnames(dat2)[ncol(dat2)] <- "fdr"
+  
+  dat2 <- data.frame(RowName = rownames(dat2), dat2)
+  write.csv(dat2, "../metacycmarker_CF&CS.csv", row.names = FALSE)  
+
+
+
+
+#Grouped column chart-metacyc
+#load_package
+ library(tidyverse)
+  library(ggplot2)
+  library(dplyr)
+  library(ggpubr)
+  library(scales)
+    
+#load_data
+
+conf_CF <-read.csv("../CF_conf.csv",row.names = 1)
+conf_CL <-read.csv("../CL_conf.csv",row.names = 1)
+conf <- rbind(conf_CF, conf_CL)
+conf_CS <-read.csv("../CS_conf.csv",row.names = 1)
+conf <- rbind(conf, conf_CS)
+  
+dat <-read.csv("../metacyc.csv",row.names = 1)
+colnames(dat) <- sub("^X", "", colnames(dat))
+dat=t(dat)
+dat_CF <- dat[intersect(rownames(dat), rownames(conf_CF)),]
+dat_CL <- dat[intersect(rownames(dat), rownames(conf_CL)),]
+dat_CS <- dat[intersect(rownames(dat), rownames(conf_CS)),]
+dat_CF <- as.data.frame(dat_CF)
+dat_CL <- as.data.frame(dat_CL)
+dat_CS <- as.data.frame(dat_CS)
+
+df1 <- data.frame(Group = c(rep("CF", length(dat_CF$CITRULBIO_PWY)),
+                              rep("CL", length(dat_CL$CITRULBIO_PWY)),
+                              rep("CS", length(dat_CS$CITRULBIO_PWY))),
+                    abundance = c(dat_CF$CITRULBIO_PWY,
+                                  dat_CL$CITRULBIO_PWY,
+                                  dat_CS$CITRULBIO_PWY),
+                    species = rep("CITRULBIO_PWY",
+                                  length(dat_CF$CITRULBIO_PWY) +
+                                    length(dat_CL$CITRULBIO_PWY) +
+                                    length(dat_CS$CITRULBIO_PWY)))
+  
+  df2 <- data.frame(Group = c(rep("CF", length(dat_CF$PWY_4984)),
+                              rep("CL", length(dat_CL$PWY_4984)),
+                              rep("CS", length(dat_CS$PWY_4984))),
+                    abundance = c(dat_CF$PWY_4984,
+                                  dat_CL$PWY_4984,
+                                  dat_CS$PWY_4984),
+                    species = rep("PWY_4984",
+                                  length(dat_CF$PWY_4984) +
+                                    length(dat_CL$PWY_4984) +
+                                    length(dat_CS$PWY_4984)))
+  
+  
+  df3 = data.frame(
+    Group = c(rep("CF", length(dat_CF$PWY_5845)),
+              rep("CL", length(dat_CL$PWY_5845)),
+              rep("CS", length(dat_CS$PWY_5845))),
+    abundance = c(dat_CF$PWY_5845,
+                  dat_CL$PWY_5845,
+                  dat_CS$PWY_5845),
+    species = rep("PWY_5845",
+                  length(dat_CF$PWY_5845) +
+                    length(dat_CL$PWY_5845) +
+                    length(dat_CS$PWY_5845))
+  )
+  
+  
+  df4 <- data.frame(
+    Group = c(rep("CF", length(dat_CF$PWY_5862)),
+              rep("CL", length(dat_CL$PWY_5862)),
+              rep("CS", length(dat_CS$PWY_5862))),
+    abundance = c(dat_CF$PWY_5862,
+                  dat_CL$PWY_5862,
+                  dat_CS$PWY_5862),
+    species = rep("PWY_5862",
+                  length(dat_CF$PWY_5862) +
+                    length(dat_CL$PWY_5862) +
+                    length(dat_CS$PWY_5862)))
+  
+  df5 <- data.frame(
+    Group = c(rep("CF", length(dat_CF$PWY_6562)),
+              rep("CL", length(dat_CL$PWY_6562)),
+              rep("CS", length(dat_CS$PWY_6562))),
+    abundance = c(dat_CF$PWY_6562,
+                  dat_CL$PWY_6562,
+                  dat_CS$PWY_6562),
+    species = rep("PWY_6562",
+                  length(dat_CF$PWY_6562) +
+                    length(dat_CL$PWY_6562) +
+                    length(dat_CS$PWY_6562)))
+  
+  df7 <- data.frame(
+    Group = c(rep("CF", length(dat_CF$PWY_6731)),
+              rep("CL", length(dat_CL$PWY_6731)),
+              rep("CS", length(dat_CS$PWY_6731))),
+    abundance = c(dat_CF$PWY_6731,
+                  dat_CL$PWY_6731,
+                  dat_CS$PWY_6731),
+    species = rep("PWY_6731",
+                  length(dat_CF$PWY_6731) +
+                    length(dat_CL$PWY_6731) +
+                    length(dat_CS$PWY_6731)))
+  
+  df6 <- data.frame(
+    Group = c(rep("CF", length(dat_CF$PWY0_1415)),
+              rep("CL", length(dat_CL$PWY0_1415)),
+              rep("CS", length(dat_CS$PWY0_1415))),
+    abundance = c(dat_CF$PWY0_1415,
+                  dat_CL$PWY0_1415,
+                  dat_CS$PWY0_1415),
+    species = rep("PWY0_1415",
+                  length(dat_CF$PWY0_1415) +
+                    length(dat_CL$PWY0_1415) +
+                    length(dat_CS$PWY0_1415)))
+  df=rbind(df1,df2)
+  df=rbind(df,df3)
+  df=rbind(df,df4)
+  df=rbind(df,df5)
+  df=rbind(df,df6)
+  df=rbind(df,df7)
+  
+
+
+  values = c("#88D8F5", "#F5F188", "#E5564E")
+  my_comparisons = list( c("CF", "CL"),c("CL","CS"),c("CF","CS") )
+  
+  p=ggboxplot(df, 
+            x = "Group", 
+            y = "abundance", 
+            fill = "Group",
+            color = "black", 
+            width = 0.9,
+            alpha = 0.7) +
+    scale_fill_manual(values = values) +
+    geom_jitter(width = 0.2, height = 0, alpha = 0.5) +
+    scale_color_manual(values = setNames(values, unique(df$Group))) +
+    labs(y = "Relative abundance (%)",x=" ") +
+    theme(title =element_text(hjust = 0.5,size = 12),
+          axis.title.y = element_text(family = "sans", size = 10), 
+          axis.text.y = element_text(family = "sans", size = 10),
+          axis.title.x = element_text(family = "sans", size = 12), 
+          axis.text.x = element_text(family = "sans", size = 12),
+          panel.background = element_rect(fill=NULL, colour = 'black'),
+          strip.text = element_text(size = 12),
+          legend.position ="right") +
+    scale_y_continuous(labels = scientific_format())+
+    facet_wrap(~ species, scales = "free", ncol =3)+
+    stat_compare_means(label.x = 0.0001,
+                       label.y.npc = 0.8,
+                       comparisons = my_comparisons, 
+                       label = "p.signif", 
+                       size = 3,
+                       vjust = 0.3)
+  
+  p
+  ggsave("../func/1",plot = p,device = "pdf",width = 9,height =11,units = "in")
+  
+  #Grouped column chart-KEGG
+  conf_CF <-read.csv("../CF_conf.csv",row.names = 1)
+  conf_CL <-read.csv("../CL_conf.csv",row.names = 1)
+  conf <- rbind(conf_CF, conf_CL)
+  conf_CS <-read.csv("../CS_conf.csv",row.names = 1)
+  conf <- rbind(conf, conf_CS)
+  
+  dat <-read.csv("../KEGG.csv",row.names = 1)
+  dat=t(dat)
+  
+  colnames(dat) <- sub("^X", "", colnames(dat))
+  dat=t(dat)
+  dat_CF <- dat[intersect(rownames(dat), rownames(conf_CF)),]
+  dat_CL <- dat[intersect(rownames(dat), rownames(conf_CL)),]
+  dat_CS <- dat[intersect(rownames(dat), rownames(conf_CS)),]
+  dat_CF <- as.data.frame(dat_CF)
+  dat_CL <- as.data.frame(dat_CL)
+  dat_CS <- as.data.frame(dat_CS)
+
+df1 <- data.frame(Group = c(rep("CF", length(dat_CF$K01728)),
+                              rep("CL", length(dat_CL$K01728)),
+                              rep("CS", length(dat_CS$K01728))),
+                    abundance = c(dat_CF$K01728,
+                                  dat_CL$K01728,
+                                  dat_CS$K01728),
+                    species = rep("K01728",
+                                  length(dat_CF$K01728) +
+                                    length(dat_CL$K01728) +
+                                    length(dat_CS$K01728)))
+  
+  df2 <- data.frame(Group = c(rep("CF", length(dat_CF$K07071)),
+                              rep("CL", length(dat_CL$K07071)),
+                              rep("CS", length(dat_CS$K07071))),
+                    abundance = c(dat_CF$K07071,
+                                  dat_CL$K07071,
+                                  dat_CS$K07071),
+                    species = rep("K07071",
+                                  length(dat_CF$K07071) +
+                                    length(dat_CL$K07071) +
+                                    length(dat_CS$K07071)))
+  
+  
+  df=rbind(df1,df2)
+  
+  
+  values = c("#88D8F5", "#F5F188", "#E5564E")
+  my_comparisons = list( c("CF", "CL"),c("CL","CS"),c("CF","CS") )
+  
+  p=ggboxplot(df, 
+              x = "Group", 
+              y = "abundance", 
+              fill = "Group",
+              color = "black", 
+              width = 0.9,
+              alpha = 0.7) +
+    scale_fill_manual(values = values) +
+    geom_jitter(width = 0.2, height = 0, alpha = 0.5) +
+    scale_color_manual(values = setNames(values, unique(df$Group))) +
+    labs(y = "Relative abundance (%)",x=" ") +
+    theme(title =element_text(hjust = 0.5,size = 12),
+          axis.title.y = element_text(family = "sans", size = 10), 
+          axis.text.y = element_text(family = "sans", size = 10),
+          axis.title.x = element_text(family = "sans", size = 12), 
+          axis.text.x = element_text(family = "sans", size = 12),
+          panel.background = element_rect(fill=NULL, colour = 'black'),
+          strip.text = element_text(size = 12),
+          legend.position ="right") +
+    scale_y_continuous(labels = scientific_format())+
+    facet_wrap(~ species, scales = "free", ncol =3)+
+    stat_compare_means(label.x = 0.0001,
+                       label.y.npc = 0.8,
+                       comparisons = my_comparisons, 
+                       label = "p.signif", 
+                       size = 3,
+                       vjust = 0.3)
+  p
+  ggsave("../func/2",plot = p,device = "pdf",width = 6.2,height =3.85,units = "in")
+  
+  
