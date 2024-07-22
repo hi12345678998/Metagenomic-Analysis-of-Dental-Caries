@@ -1,0 +1,14 @@
+#load_package
+  library("ggplot2")
+  library("tidyverse")
+  library("RColorBrewer")
+  library("cowplot")
+  library("yaml")
+
+#load_data
+dat <- read.csv("../micromarker_mp4_s.csv", row.names = 1)
+dat <- data.frame(RowName = rownames(dat), dat)
+  
+  log10fdr <- -log10(dat$fdr)
+  dat=cbind(dat,log10fdr)
+  dat1 =dat[dat$fdr< 0.05,]
