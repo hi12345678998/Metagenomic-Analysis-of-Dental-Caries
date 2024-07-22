@@ -1,14 +1,170 @@
 #load_package
-  library("ggplot2")
-  library("tidyverse")
-  library("RColorBrewer")
-  library("cowplot")
-  library("yaml")
+  library(ggplot2)
+  library(tidyverse)
+  library(RColorBrewer)
+  library(cowplot)
+  library(yaml)
+  library(reshape2)
 
 #load_data
-dat <- read.csv("../micromarker_mp4_s.csv", row.names = 1)
+dat <- read.csv("../micromarkerCF&CS.csv", row.names = 1)
 dat <- data.frame(RowName = rownames(dat), dat)
   
   log10fdr <- -log10(dat$fdr)
   dat=cbind(dat,log10fdr)
   dat1 =dat[dat$fdr< 0.05,]
+  dat1 <- dat1[order(dat1$log10fdr), ]
+
+
+p=ggplot(data = dat1, aes(x = reorder(RowName, -log10fdr), 
+                          y = log10fdr, 
+                          fill = ifelse(log10fdr < 3, "low", "high"))) +
+    geom_bar(stat = "identity") + 
+    scale_fill_manual(values = c("low" = "lightgray", "high" = "darkgray")) +
+    theme_classic() + 
+    labs(x = "microbial species", y = "-log10(FDR)") +
+    theme(legend.position = "none",
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.text.x = element_blank(),
+          axis.title.y = element_text(family = "sans", size = 12), 
+          axis.text.y = element_text(family = "sans", size = 12),
+          panel.background = element_rect(fill=NULL, colour = 'black'),
+          plot.title = element_text(hjust = 0.5,size = 12)) +
+    scale_x_discrete(position='top') + 
+    scale_y_continuous(limits = c(0, 8), 
+                       expand = c(0, 0), 
+                       breaks = scales::pretty_breaks(n = 3),
+                       labels = scales::number_format(accuracy = 0.01))
+  p
+  ggsave("../micro_ana/1",plot = p,device = "pdf",width = 14,height =2,units = "in")
+
+#grouped column chart
+data <- dat[dat$fdr< 0.001,]
+
+data <- data[order(data$V4, ifelse(data$V4 == 1, -data$log10fdr, data$log10fdr)), ]
+data$order_col <- ifelse(data$V4 == 0, data$log10fdr, -data$log10fdr)
+data <- data[order(data$order_col), ]
+p=ggplot(data, aes(x=reorder(RowName, order_col), y=log10fdr, fill=as.factor(V4))) +
+    geom_bar(stat="identity",position="dodge") +
+    scale_x_discrete(limits = unique(data$RowName)) +
+    theme_classic() +
+    theme(legend.position = "none",
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.ticks.x = element_blank(),
+          axis.text.x = element_blank(),
+          axis.title.y = element_text(family = "sans", size = 12), 
+          axis.text.y = element_text(family = "sans", size = 12),
+          panel.background = element_rect(fill=NULL, colour = 'black'),
+          plot.title = element_text(hjust = 0.5,size = 12)) +
+    xlab("") +
+    ylab("-log10(FDR)") +
+    scale_fill_manual(values = c("1" = "#E5564E", "0" = "#88D8F5"))+
+    scale_y_continuous( breaks = scales::pretty_breaks(n = 4),
+      labels = scales::number_format(accuracy = 0.01))
+  p
+  ggsave("../micro_ana/2",plot = p,device = "pdf",width = 14,height =2,units = "in")
+  
+#Scatter plot
+  p=ggplot(data, 
+           aes(x=reorder(RowName, order_col), 
+               y=FoldChange, 
+               fill=as.factor(V4))) +  
+    geom_segment(aes(x = RowName, 
+                     xend = RowName, 
+                     y = 0, 
+                     yend = FoldChange, 
+                     color = as.factor(V4)), 
+                linetype = "solid") + 
+    labs(title = NULL)+
+    geom_hline(yintercept = 0, linetype = "dashed") +  
+    geom_point(aes(color = as.factor(V4)), shape = 21, size = 3) +  
+    theme_classic() +
+    theme(legend.position = "none",
+          axis.text.x = element_text(size = 12, angle = 90, vjust = 0.5, hjust = 1),
+          axis.title.y = element_text(family = "sans", size = 12), 
+          axis.text.y = element_text(family = "sans", size = 12),
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          panel.border = element_rect(color = "black", fill = NA, size = 1)) +  
+    xlab(" ") +
+    ylab("FoldChange") +
+    scale_x_discrete(limits = unique(data$RowName)) +
+    scale_fill_manual(values =  c("1" = "#E5564E", "0" = "#88D8F5")) +
+    scale_color_manual(values =  c("1" = "#E5564E", "0" = "#88D8F5"))+
+    scale_y_continuous( breaks = scales::pretty_breaks(n = 5),
+                        labels = scales::number_format(accuracy = 0.1))
+    
+  p
+  ggsave("../micro_ana/3",plot = p,device = "pdf",width = 14,height =5.5,units = "in")
+
+#auc plot
+ p= ggplot(data, 
+            aes(x=reorder(RowName, order_col),
+                y=AUC, 
+                fill=as.factor(V4), 
+                color=as.factor(V4), 
+                label=sprintf("%.2f", AUC))) +  
+    geom_point(size = 3) +
+    geom_text(size=4.3, vjust=3, hjust=0.5) +  
+    geom_hline(yintercept = 0, linetype = "dashed") +  # 添加y=0的虚线
+    theme_classic() +
+    theme(legend.position = "none",
+          panel.grid.major = element_blank(),
+          panel.grid.minor = element_blank(),
+          axis.title.y = element_text(family = "sans", size = 12), 
+          axis.text.y = element_text(family = "sans", size = 12),
+          axis.ticks.x = element_blank(),
+          axis.text.x = element_blank(),
+          panel.background = element_rect(fill=NULL, colour = 'black'),
+          plot.title = element_text(hjust = 0.5,size = 12)) +
+    xlab("") +
+    ylab("AUC") +
+    scale_y_continuous( breaks = scales::pretty_breaks(n = 4),
+                        labels = scales::number_format(accuracy = 0.01),
+                        limits = c(0.5, NA))+
+    scale_fill_manual(values = c("1" = "#E5564E", "0" = "#88D8F5")) +
+    scale_color_manual(values = c("1" = "#E5564E", "0" = "#88D8F5"))  # Add a layer with geom
+
+  p
+    
+ ggsave("../micro_ana/4",plot = p,device = "pdf",width = 14,height =2,units = "in")
+
+#network_analyzs
+  R1 = read.csv("../micromarkerCF&CS.csv",row.names = 1,head=F)
+  pv = R1[,1]
+  
+  
+  fdr = p.adjust(pv,method="BH")
+  fdr[fdr<0.001]
+  R1$fdr = fdr
+  head(R1)
+  marker = R1[which(R1$fdr<0.001),]
+  dim(marker)
+  marker[1:4,1:4]
+  
+  dat <-read.csv("../142mp4_s.csv",row.names = 1)
+  cnt= apply(dat,1,function(x){sum(x)}) 
+  sum(cnt<=0)
+  dat=dat[which(cnt>0),]
+  dat[1:4,1:4]
+  
+  marf = dat[, match(rownames(marker),colnames(dat))]
+  marf[1:4,1:4]
+  dim(marf)
+  
+  cor1 = cor(marf,method="spearman")
+  cor1[1:4,1:4]
+
+  cor2 = melt(cor1)
+  head(cor2)
+  
+  cor2 = cor2[abs(cor2$value) >= 0.5,]
+  cor2 = cor2[cor2[,1]!= cor2[,2],]
+  dim(cor2)
+  
+  
+  write.csv(cor2,"../network_spearman.csv",quote=F,row.names=F) 
+ 
