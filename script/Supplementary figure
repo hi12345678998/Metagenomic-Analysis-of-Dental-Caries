@@ -7,11 +7,223 @@ library(tidyr)
 library(ggpmisc)
 library(forcats)
 library(RColorBrewer)
+library(VennDiagram)
 
 #Genus
 #load_data
-Bacteria_RPM<-read.csv("D://huihui/paper/241_G.csv",header =TRUE,row =1)
+Bacteria_RPM<-read.csv("../241_G.csv",header =TRUE,row =1)
 colnames(Bacteria_RPM) <- sub("^X", "", colnames(Bacteria_RPM))
-Host<-data <- read.csv("D://huihui/paper/241_Group.csv", header = TRUE,row.names = 1)
+Host<-data <- read.csv("../241_Group.csv", header = TRUE,row.names = 1)
 df_in_host<-Bacteria_RPM[rownames(Bacteria_RPM) %in% rownames(Host), ]
 host<-Host
+df_in_host <- df_in_host %>% 
+    rownames_to_column(var = "sample")
+host <- host %>% 
+    rownames_to_column(var = "sample") 
+ merged_df <- merge(df_in_host, host, by = "sample")
+long_df <- merged_df %>% 
+    gather(key = "species", value = "RPM", -sample, -group)
+group_species_totals <- long_df %>% 
+    group_by(group, species) %>% 
+    summarise(total_RPM = sum(RPM, na.rm = TRUE))
+
+group_totals <- group_species_totals %>% 
+    group_by(group) %>% 
+    summarise(group_total_RPM = sum(total_RPM))
+
+species_percentage <- merge(group_species_totals, group_totals, by = "group") %>% 
+    mutate(percentage = (total_RPM / group_total_RPM) * 100) %>% 
+    select(group, species, percentage)
+
+final_df <- species_percentage %>% 
+    spread(key = species, value = percentage)
+  
+  rownames(final_df) <- final_df$group
+  final_df <- final_df[,-1] 
+
+long_final_df <- final_df %>%
+    rownames_to_column(var = "group") %>%
+    gather(key = "species", value = "percentage", -group)
+
+split_dfs <- split(long_final_df, long_final_df$group)
+
+change_species_names <- function(df) {
+    top_species <-df %>%
+      group_by(species) %>%
+      summarise(total_percentage = sum(percentage, na.rm = TRUE)) %>%
+      top_n(10, total_percentage) %>%
+      pull(species)
+    df$species <- ifelse(df$species %in% top_species, df$species, "Other")
+    return(df)
+  }
+
+modified_dfs <- lapply(split_dfs, change_species_names)
+  
+final_merged_df <- do.call(rbind, modified_dfs)
+
+getPalette <- colorRampPalette(brewer.pal(8,"Set1"))
+  ColorCount <-length(unique(final_merged_df$species))
+
+
+display.brewer.all()
+
+ggplot(final_merged_df, aes(x = group, y = percentage, fill = fct_rev(fct_infreq(species)))) +
+    geom_bar(stat = "identity") +
+    theme_bw() +
+    theme(axis.text.x = element_blank(),  # Remove X-axis labels
+          axis.title = element_text(size = 12, face = "bold"),  # Set axis title font size and weight
+          plot.title = element_text(size = 10, face = "bold",hjust = 0.5),  # Set plot title font size and weight
+          legend.title = element_text(size = 10),  # Set legend title font size
+          legend.text = element_text(size = 10),  # Set legend text font size
+          panel.grid = element_blank(),  # Remove background grid lines from each facet
+          strip.text = element_text(size = 10, face = "bold")  # Set facet title font size and weight
+    ) +
+    labs(x = "group", y = "Percentage (100%)", fill = "Genus") +  # Set X-axis label to empty string
+    scale_fill_manual(values = getPalette(ColorCount)) +
+    facet_wrap(~ group, scales = "free_x", ncol = 3) 
+
+
+#Species
+
+#load_data
+Bacteria_RPM<-read.csv("../241_S.csv",header =TRUE,row =1)
+colnames(Bacteria_RPM) <- sub("^X", "", colnames(Bacteria_RPM))
+Host<-data <- read.csv("../241_Group.csv", header = TRUE,row.names = 1)
+df_in_host<-Bacteria_RPM[rownames(Bacteria_RPM) %in% rownames(Host), ]
+host<-Host
+df_in_host <- df_in_host %>% 
+    rownames_to_column(var = "sample")
+host <- host %>% 
+    rownames_to_column(var = "sample") 
+ merged_df <- merge(df_in_host, host, by = "sample")
+long_df <- merged_df %>% 
+    gather(key = "species", value = "RPM", -sample, -group)
+group_species_totals <- long_df %>% 
+    group_by(group, species) %>% 
+    summarise(total_RPM = sum(RPM, na.rm = TRUE))
+
+group_totals <- group_species_totals %>% 
+    group_by(group) %>% 
+    summarise(group_total_RPM = sum(total_RPM))
+
+species_percentage <- merge(group_species_totals, group_totals, by = "group") %>% 
+    mutate(percentage = (total_RPM / group_total_RPM) * 100) %>% 
+    select(group, species, percentage)
+
+final_df <- species_percentage %>% 
+    spread(key = species, value = percentage)
+  
+  rownames(final_df) <- final_df$group
+  final_df <- final_df[,-1] 
+
+long_final_df <- final_df %>%
+    rownames_to_column(var = "group") %>%
+    gather(key = "species", value = "percentage", -group)
+
+split_dfs <- split(long_final_df, long_final_df$group)
+
+change_species_names <- function(df) {
+    top_species <-df %>%
+      group_by(species) %>%
+      summarise(total_percentage = sum(percentage, na.rm = TRUE)) %>%
+      top_n(10, total_percentage) %>%
+      pull(species)
+    df$species <- ifelse(df$species %in% top_species, df$species, "Other")
+    return(df)
+  }
+
+modified_dfs <- lapply(split_dfs, change_species_names)
+  
+final_merged_df <- do.call(rbind, modified_dfs)
+
+getPalette <- colorRampPalette(brewer.pal(8,"Set1"))
+  ColorCount <-length(unique(final_merged_df$species))
+
+
+display.brewer.all()
+
+ggplot(final_merged_df, aes(x = group, y = percentage, fill = fct_rev(fct_infreq(species)))) +
+    geom_bar(stat = "identity") +
+    theme_bw() +
+    theme(axis.text.x = element_blank(),  # Remove X-axis labels
+          axis.title = element_text(size = 12, face = "bold"),  # Set axis title font size and weight
+          plot.title = element_text(size = 10, face = "bold",hjust = 0.5),  # Set plot title font size and weight
+          legend.title = element_text(size = 10),  # Set legend title font size
+          legend.text = element_text(size = 10),  # Set legend text font size
+          panel.grid = element_blank(),  # Remove background grid lines from each facet
+          strip.text = element_text(size = 10, face = "bold")  # Set facet title font size and weight
+    ) +
+    labs(x = "group", y = "Percentage (100%)", fill = "Species") +  # Set X-axis label to empty string
+    scale_fill_manual(values = getPalette(ColorCount)) +
+    facet_wrap(~ group, scales = "free_x", ncol = 3) 
+
+
+
+#VennDiagram
+
+  dat<-read.csv("../241_G.csv",header =TRUE,row =1)
+  colnames(dat) <- sub("^X", "", colnames(dat))
+  dat=t(dat)
+  conf <-read.csv("../conf_vn.csv", sep=",",head=T,row.names = 1)  
+  index = rownames(conf) %in% colnames(dat)
+  conf = conf[index,]
+  dat = dat[,rownames(conf)]
+  dat_t = t(dat)
+  dat_t2 = merge(conf, dat_t, by="row.names")
+  dat_t2 = dat_t2[,c(-1,-3)]
+  dat_mean = aggregate(dat_t2[,-1], by=dat_t2[1], FUN=mean)
+  dat4Pic = as.data.frame(do.call(rbind, dat_mean)[-1,]) 
+  colnames(dat4Pic) = dat_mean$group
+  dat4Pic=as.data.frame(dat4Pic)
+  dat4Pic[dat4Pic>0]=1
+
+  write.table(dat4Pic,"../d3.dat4venn.txt", sep="\t", quote=F)
+  Data4Pic = read.table("../d3.dat4venn.txt", header=T, row.names=1)
+
+
+  pdf(file="../p1.GenusVenn.pdf", width=4, height=3, pointsize=8)
+  p1 <- venn.diagram(
+    x=list(CF=row.names(Data4Pic[Data4Pic$CF==1,]),
+           CL=row.names(Data4Pic[Data4Pic$CL==1,]),
+           CS=row.names(Data4Pic[Data4Pic$CS==1,])),
+    filename = NULL, lwd = 2, alpha = 0.6,
+    label.col = "black", cex = 1.5,
+    fill = c("#88D8F5", "#F5F188", "#E5564E"),
+    cat.col =c("#88D8F5", "#F5F188", "#E5564E"),
+    fontfamily = "serif", fontface = "bold",
+    cat.fontfamily = "serif",cat.fontface = "bold",
+    margin = 0.05,cat.dist = 0.08)
+
+  png(file="../GenusVenn.png", width=4, height=3, res=300, units="in")
+  grid.draw(p1)
+  dev.off()
+
+#upset  
+
+library(UpSetR)
+library(openxlsx)
+library(RColorBrewer)
+
+Data4Pic = read.table("../d3.dat4venn.txt", header=T, row.names=1)
+pdf(file="../p2.GenusUpset.pdf", width=4, height=3, pointsize=8)
+(p2 <-upset(Data4Pic, sets = colnames(Data4Pic),order.by = "freq"))
+dev.off()
+png(file="../p2.GenusUpset.png", width=4, height=3, res=300, units="in")
+p2
+dev.off()
+  
+pdf(file="../p3.GenusUpsetIndiv.pdf", width=8, height=4, pointsize=8)
+p3<-upset(Data4Pic, sets = colnames(Data4Pic), mb.ratio = c(0.55, 0.45), order.by = "freq",
+            queries = list(list(query=intersects, params=list("CF", "CL"), color="purple", active=T),
+                           list(query=intersects, params=list("CF", "CS"), color="green", active=T),
+                           list(query=intersects, params=list("CL", "CS"), color="yellow", active=T),
+                           list(query=intersects, params=list("CF", "CL", "CS"), color="blue", active=T)),
+            nsets = 3, number.angles = 0, point.size = 4, line.size = 1,
+            mainbar.y.label = "Number of shared genus",
+            sets.x.label = "Number in each group", text.scale = c(1.5, 1.5, 1.5, 1.5, 1.5, 1.5))
+p3
+dev.off()
+png(file="../p3.GenusUpsetIndiv.png", width=8, height=4, res=300, units="in")
+p3
+dev.off()
+
