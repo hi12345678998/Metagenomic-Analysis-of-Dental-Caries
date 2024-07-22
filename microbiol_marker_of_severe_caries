@@ -1,0 +1,34 @@
+# loading_package
+  library(tidyverse)
+
+
+
+# wilcox.test
+#load_data
+dat <-read.csv("../142mp4_s.csv",row.names = 1)
+  colnames(dat) <- sub("^X", "", colnames(dat))
+  rownames(dat) <- sub("^X", "", rownames(dat))
+  cnt= apply(dat,1,function(x){sum(x)}) 
+  sum(cnt<=0)
+  dat=dat[which(cnt>0),]
+  dat[1:4,1:4]
+
+conf <-read.csv("../142sample.profile.csv", sep=",",head=T,row.names = 1)
+  rownames(conf) = unlist( lapply( strsplit(rownames(conf),"-",fixed=T),function(x){x[length(x)]} ) )
+  conf[1:3,1:3]
+nm=intersect(gsub("\"","",rownames(conf)),gsub("\"","",rownames(dat)))
+length(nm)
+conf1=conf[match(nm,gsub("\"","",rownames(conf)) ),]
+dat1=dat[match(nm,gsub("\"","",rownames(dat)) ),]
+
+disease = conf1$disease
+disease[disease=="caries"]=1
+disease[disease=="healthy"]=0
+disease=as.numeric(disease)
+disease
+
+data = t(dat1) 
+  type=disease 
+  count=apply(data,1,function(x){sum(as.numeric(x)>0)})
+  dim(data)*0.05
+  data=data[count>10,]
