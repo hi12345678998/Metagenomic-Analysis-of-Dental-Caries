@@ -1,0 +1,183 @@
+#load_package
+library(randomForest)
+library(pROC)
+library(caret)
+library(ggplot2)
+
+#load_data
+dat <-read.csv("../142mp4_s.csv",row.names = 1)
+cnt= apply(dat,1,function(x){sum(x)}) 
+dat=dat[which(cnt>0),]
+dat <- sweep(dat,1,apply(dat,1,sum),"/")
+  
+conf <-read.csv("../142sample.profile.csv", sep=",",head=T,row.names = 1)
+rownames(conf) = unlist( lapply( strsplit(rownames(conf),"-",fixed=T),function(x){x[length(x)]} ) )
+nm=intersect(gsub("\"","",rownames(conf)),gsub("\"","",rownames(dat)))
+length(nm)
+  
+conf1=conf[match(nm,gsub("\"","",rownames(conf)) ),]
+dat1=dat[match(nm,gsub("\"","",rownames(dat)) ),]
+
+#randomForest
+set.seed(71)
+iris.rf <- randomForest(dat1,
+                        factor(conf1$disease,
+                        levels=c("caries","healthy")),  
+                        importance=TRUE,
+                        proximity=TRUE,
+                        ntree =1000,
+                        sampsize=c(min(table(conf1$disease)),min(table(conf1$disease)) ),
+                        strata=conf1$disease)
+  
+iris.rf
+head( iris.rf$importance)
+imp = iris.rf$importance[order( iris.rf$importance[,"MeanDecreaseGini"], decreasing=T),]
+head(imp)
+
+#rfe
+fiveStats <- function(...) c(twoClassSummary(...),
+                               defaultSummary(...))
+predVars <- colnames(dat1)
+varSeq <- seq(1, length(predVars)-1, by = 5)
+varSeq =c(varSeq[1:19],60,100,200,600)
+str(rfFuncs)
+newRF <- rfFuncs
+newRF$summary <- fiveStats
+set.seed(104)
+index <- createMultiFolds(factor(conf1$disease,levels=c("healthy","caries")), times = 5)
+ctrl <- rfeControl(method = "repeatedcv",
+                     repeats = 5,
+                     verbose = TRUE,
+                     functions = newRF,
+                     index = index)
+set.seed(2023)
+rfRFE <- rfe(x = dat1,
+               y=  factor(conf1$disease,levels=c("healthy","caries"))  ,
+               sizes = varSeq,
+               metric = "ROC",
+               rfeControl = ctrl,
+               sampsize=c(min(table(conf1$disease)),min(table(conf1$disease)) ),
+               strata=conf1$disease,
+               ## now pass options to randomForest()
+               ntree = 1000)
+rfRFE
+rfRFE$predictors
+rfRFE$optVariables
+rfRFE$fit$importance
+
+
+#barplot of MeanDecreaseGini
+#get data
+importanceData <- rfRFE$fit$importance
+df <- data.frame(Feature=row.names(importanceData), MeanDecreaseGini=importanceData[,'MeanDecreaseGini'])
+df_sorted <- df[order(-df$MeanDecreaseGini),]
+
+#barplot
+ p= ggplot(df_sorted, aes(x=reorder(Feature, MeanDecreaseGini), y=MeanDecreaseGini)) +
+    geom_bar(stat='identity', fill='darkblue',alpha = 0.7) +
+    theme_classic() +
+    theme(title =element_text(hjust = 0.5,size = 12),
+          axis.title.y = element_text(family = "sans", size = 12), 
+          axis.text.y = element_text(family = "sans", size = 12),
+          axis.title.x = element_text(family = "sans", size = 12), 
+          axis.text.x = element_text(family = "sans", size = 12),
+          panel.background = element_rect(fill=NULL, colour = 'black'),
+          strip.text = element_text(size = 12),
+          legend.position ="right") +
+    scale_x_discrete(labels = function(x) {gsub("_", " ", x)})+
+    xlab("")+
+    coord_flip()
+  p
+  ggsave("../predict/2",plot = p,device = "pdf",width = 6,height =6,units = "in")
+
+
+#ROC
+#save PDF
+pdf(../predict/1.pdf")
+#R1
+r1 = roc(factor(conf$disease,levels=c("healthy","caries")), rfRFE$fit$votes[,2],ci=T)
+plot(r1,ci=T,col = "darkblue",main = "Log-Log plot")
+r1 
+#R2
+r2 = roc(factor(conf$disease,levels=c("healthy","caries")), 
+           dat1[,grepl('Streptococcus_mutans',colnames(dat))],ci=T)
+plot(r2,ci=T)
+r2 
+#R3
+r3 = roc(factor(conf$disease,levels=c("healthy","caries")), 
+           dat1[,grepl('Campylobacter_SGB19347',colnames(dat))],ci=T)
+plot(r3,ci=T)
+r3 
+  
+#draft R1
+plot(r1, col = 'orange', legacy.axes = TRUE, print.auc = FALSE, print.auc.y = 0.28, print.auc.x = 0.5)
+#draft R2
+plot(r2, add = TRUE, col = '#8C0909', legacy.axes = TRUE, print.auc = FALSE, print.auc.y = 0.21, print.auc.x = 0.5)
+#draft R3
+plot(r3, add = TRUE, col = '#88D8F5', legacy.axes = TRUE, print.auc = FALSE, print.auc.y = 0.21, print.auc.x = 0.5)
+  
+#text
+custom_text <- c(paste("mix AUC =", round(r1$auc,2)),
+                   paste("S mutans AUC =", round(r2$auc,2)),
+                   paste("C SGB19347 AUC =", round(r3$auc,2)))
+#legend
+legend(1, 1, lwd = 3, legend = custom_text, col = c("orange", "#8C0909","#88D8F5"))
+dev.off()
+
+
+
+
+
+#the top severe caries enriched predictive species
+data <- data.frame(value=dat1[,grepl('Streptococcus_mutans',colnames(dat))], category=conf$DMFT)
+  
+  p=ggplot(data, aes(x = factor(category), y = value, group = factor(category))) +
+    geom_boxplot(aes(fill = category)) +
+    scale_fill_gradientn(colours = c("white", "lightblue","darkblue"),
+                         values = c(0,0.5,1)) +
+    theme(panel.background = element_rect(fill = "white", color = "black"),
+          plot.background = element_rect(color = "white"),
+          title =element_text(hjust = 0.5,size = 12),
+          axis.title.y = element_text(family = "sans", size = 12), 
+          axis.text.y = element_text(family = "sans", size = 12),
+          axis.title.x = element_text(family = "sans", size = 12), 
+          axis.text.x = element_text(family = "sans", size = 12),
+          strip.text = element_text(size = 12),
+          legend.text = element_text(family = "sans", size = 12),
+          legend.position ="right")+
+    xlab("DMFT") +
+    ylab("Relative abundance of Streptococcus mutans")   
+  p
+  ggsave("../predict/3",plot = p,device = "pdf",width = 6.7,height =5.4,units = "in")
+
+
+
+
+#the top caries free enriched predictive species
+data <- data.frame(value=dat1[,grepl('Campylobacter_SGB19347',colnames(dat))], category=conf$DMFT)
+  
+  p=ggplot(data, aes(x = factor(category), y = value, group = factor(category))) +
+    geom_boxplot(aes(fill = category)) +
+    scale_fill_gradientn(colours = c("white", "lightblue","darkblue"),
+                         values = c(0,0.5,1)) +
+    theme(panel.background = element_rect(fill = "white", color = "black"),
+          plot.background = element_rect(color = "white"),
+          title =element_text(hjust = 0.5,size = 12),
+          axis.title.y = element_text(family = "sans", size = 12), 
+          axis.text.y = element_text(family = "sans", size = 12),
+          axis.title.x = element_text(family = "sans", size = 12), 
+          axis.text.x = element_text(family = "sans", size = 12),
+          strip.text = element_text(size = 12),
+          legend.title = element_text(family = "sans", size = 14),
+          legend.text = element_text(family = "sans", size = 12),
+          legend.position ="right")+
+    xlab("DMFT") +
+    ylab("Relative abundance of Campylobacter SGB19347")   
+  
+  p
+  ggsave("../predict/4",plot = p,device = "pdf",width = 6.7,height =5.4,units = "in")
+  
+
+ 
+  
+  
