@@ -32,3 +32,61 @@ data = t(dat1)
   count=apply(data,1,function(x){sum(as.numeric(x)>0)})
   dim(data)*0.05
   data=data[count>10,]
+  dim(data)
+  name=rownames(data)
+  data1=t(scale(t(data)))
+  data1[1:4,1:4]
+  colnames(data1)
+logtest<-function(marker,outcome1){
+         model = model=glm(outcome1~marker,family=binomial())
+         coef(summary(model))["marker",c("Estimate","Std. Error","Pr(>|z|)")]}
+
+  or1=apply(data1,1,function(x){logtest(as.numeric(x),type)})
+  or1=t(or1)
+  OR=exp(as.numeric(or1[,1]))
+  lower=exp(as.numeric(or1[,1])-1.96*as.numeric(or1[,2]))
+  uper=exp(as.numeric(or1[,1])+1.96*as.numeric(or1[,2]))
+  or2=data.frame(round(OR,4),round(lower,4),round(uper,4),com=paste(round(OR,2),"(",round(lower,2),",",round(uper,2),")",sep=""))
+  rownames(or2)<-rownames(data)
+  num <- nrow(data)
+  caries=type
+
+ # result
+res <- matrix(0,nrow=num,ncol=10)
+  rownames(res) <- rownames(data)
+for(i in 1:num){
+    a <- as.numeric(data[i,])
+    res[i,1] <- wilcox.test(a[caries==1],a[caries==0])$p.value  # wilcox pvalue
+    r <- rank(a)
+    res[i,2] <- round(mean(r[caries==1],na.rm=T)) # group1 , mean rank
+    res[i,3] <- round(mean(r[caries==0],na.rm=T)) # group0 , mean rank
+    res[i,4] <- 1
+    if (res[i,3]>res[i,2]) res[i,4] <- 0 # enrich
+    if( res[i,4]==1) { #z-score
+      res[i,5]= round(qnorm((wilcox.test(a[caries==1],a[caries==0],exact=F)$p.value)/2),2)
+    }
+    res[i,6]= round( mean( a[caries==1]>0, na.rm=T ),4)  #group1, freq
+    res[i,7]=round( mean( a[caries==0]>0, na.rm=T ),4) # group0 , freq
+    res[i,8] <- round(mean(a[caries==1],na.rm=T),10) # group1, mean
+    res[i,9] <- round(mean(a[caries==0],na.rm=T),10) # group0 ,mean
+    res[i,10]=round( mean( a>1e-8, na.rm=T ),4) # group0 , freq}
+
+#add_FDR
+pv=res[,1]
+  fdr = p.adjust(pv,method="BH")
+  dat2=cbind(res,fdr)
+  colnames(dat2)[ncol(dat2)] <- "fdr"
+  
+  dat2 <- data.frame(RowName = rownames(dat2), dat2)
+  write.csv(dat2, "../result.csv", row.names = FALSE)
+#add_relative abundance
+  dat=t(dat)
+  range(dat,na.rm= TRUE)
+  mean_abundance <- rowMeans(dat, na.rm = TRUE)
+  range(mean_abundance,na.rm= TRUE)
+  head(mean_abundance)
+  for (i in 1:nrow(dat)) {
+    species <- rownames(dat)[i]
+    abundance <- mean_abundance[i]
+    cat(species,  abundance, "\n")
+  }
