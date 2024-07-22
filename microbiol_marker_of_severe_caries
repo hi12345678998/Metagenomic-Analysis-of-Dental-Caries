@@ -128,5 +128,5 @@ auc_data <- data.frame(RowName = character(ncol(dat1)), AUC = numeric(ncol(dat1)
   }
  dat5 <- merge(dat4, auc_data, by = "RowName", all = TRUE)
 
- write.csv(dat5, "../micromarkerCF&_mp4_s.csv", row.names = FALSE)
+ write.csv(dat5, "../micromarkerCF&CS.csv", row.names = FALSE)
 
