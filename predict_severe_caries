@@ -129,6 +129,21 @@ dev.off()
 
 
 #the top severe caries enriched predictive species
+
+  
+dat <-read.csv("../241mp4_s.csv",row.names = 1)
+cnt= apply(dat,1,function(x){sum(x)}) 
+dat=dat[which(cnt>0),]
+dat <- sweep(dat,1,apply(dat,1,sum),"/")
+ 
+conf <-read.csv("../241disease.profile.csv", sep=",",head=T,row.names = 1)
+rownames(conf) = unlist( lapply( strsplit(rownames(conf),"-",fixed=T),function(x){x[length(x)]} ) )  
+nm=intersect(gsub("\"","",rownames(conf)),gsub("\"","",rownames(dat)))
+length(nm)
+  
+conf1=conf[match(nm,gsub("\"","",rownames(conf)) ),]
+dat1=dat[match(nm,gsub("\"","",rownames(dat)) ),]
+
 data <- data.frame(value=dat1[,grepl('Streptococcus_mutans',colnames(dat))], category=conf$DMFT)
   
   p=ggplot(data, aes(x = factor(category), y = value, group = factor(category))) +
