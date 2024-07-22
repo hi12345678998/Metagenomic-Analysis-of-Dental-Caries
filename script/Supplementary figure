@@ -13,7 +13,11 @@ library(VennDiagram)
 #load_data
 Bacteria_RPM<-read.csv("../241_G.csv",header =TRUE,row =1)
 colnames(Bacteria_RPM) <- sub("^X", "", colnames(Bacteria_RPM))
-Host<-data <- read.csv("../241_Group.csv", header = TRUE,row.names = 1)
+Host<-data <- read.csv("../241disease.profile.csv", header = TRUE,row.names = 1)
+Host <- Host[ , 5, drop = FALSE]
+colnames(Host) <- "group"
+
+
 df_in_host<-Bacteria_RPM[rownames(Bacteria_RPM) %in% rownames(Host), ]
 host<-Host
 df_in_host <- df_in_host %>% 
@@ -86,9 +90,13 @@ ggplot(final_merged_df, aes(x = group, y = percentage, fill = fct_rev(fct_infreq
 #Species
 
 #load_data
-Bacteria_RPM<-read.csv("../241_S.csv",header =TRUE,row =1)
+Bacteria_RPM<-read.csv("../241mp4_s.csv",header =TRUE,row =1)
 colnames(Bacteria_RPM) <- sub("^X", "", colnames(Bacteria_RPM))
-Host<-data <- read.csv("../241_Group.csv", header = TRUE,row.names = 1)
+Host<-data <- read.csv("../241disease.profile.csv", header = TRUE,row.names = 1)
+Host <- Host[ , 5, drop = FALSE]
+colnames(Host) <- "group"
+
+
 df_in_host<-Bacteria_RPM[rownames(Bacteria_RPM) %in% rownames(Host), ]
 host<-Host
 df_in_host <- df_in_host %>% 
@@ -161,28 +169,31 @@ ggplot(final_merged_df, aes(x = group, y = percentage, fill = fct_rev(fct_infreq
 
 #VennDiagram
 
-  dat<-read.csv("../241_G.csv",header =TRUE,row =1)
-  colnames(dat) <- sub("^X", "", colnames(dat))
-  dat=t(dat)
-  conf <-read.csv("../conf_vn.csv", sep=",",head=T,row.names = 1)  
-  index = rownames(conf) %in% colnames(dat)
-  conf = conf[index,]
-  dat = dat[,rownames(conf)]
-  dat_t = t(dat)
-  dat_t2 = merge(conf, dat_t, by="row.names")
-  dat_t2 = dat_t2[,c(-1,-3)]
-  dat_mean = aggregate(dat_t2[,-1], by=dat_t2[1], FUN=mean)
-  dat4Pic = as.data.frame(do.call(rbind, dat_mean)[-1,]) 
-  colnames(dat4Pic) = dat_mean$group
-  dat4Pic=as.data.frame(dat4Pic)
-  dat4Pic[dat4Pic>0]=1
+dat<-read.csv("../241_G.csv",header =TRUE,row =1)
+colnames(dat) <- sub("^X", "", colnames(dat))
+dat=t(dat)
+conf <-read.csv("../241disease.profile.csv", sep=",",head=T,row.names = 1)
+conf <- conf[ , 5, drop = FALSE]
+colnames(conf) <- "group"
+conf$New_Column <- 1
+index = rownames(conf) %in% colnames(dat)
+conf = conf[index,]
+dat = dat[,rownames(conf)]
+dat_t = t(dat)
+dat_t2 = merge(conf, dat_t, by="row.names")
+dat_t2 = dat_t2[,c(-1,-3)]
+dat_mean = aggregate(dat_t2[,-1], by=dat_t2[1], FUN=mean)
+dat4Pic = as.data.frame(do.call(rbind, dat_mean)[-1,]) 
+colnames(dat4Pic) = dat_mean$group
+dat4Pic=as.data.frame(dat4Pic)
+dat4Pic[dat4Pic>0]=1
 
-  write.table(dat4Pic,"../d3.dat4venn.txt", sep="\t", quote=F)
-  Data4Pic = read.table("../d3.dat4venn.txt", header=T, row.names=1)
+write.table(dat4Pic,"../d3.dat4venn.txt", sep="\t", quote=F)
+Data4Pic = read.table("../d3.dat4venn.txt", header=T, row.names=1)
 
 
-  pdf(file="../p1.GenusVenn.pdf", width=4, height=3, pointsize=8)
-  p1 <- venn.diagram(
+pdf(file="../p1.GenusVenn.pdf", width=4, height=3, pointsize=8)
+p1 <- venn.diagram(
     x=list(CF=row.names(Data4Pic[Data4Pic$CF==1,]),
            CL=row.names(Data4Pic[Data4Pic$CL==1,]),
            CS=row.names(Data4Pic[Data4Pic$CS==1,])),
@@ -193,10 +204,8 @@ ggplot(final_merged_df, aes(x = group, y = percentage, fill = fct_rev(fct_infreq
     fontfamily = "serif", fontface = "bold",
     cat.fontfamily = "serif",cat.fontface = "bold",
     margin = 0.05,cat.dist = 0.08)
-
-  png(file="../GenusVenn.png", width=4, height=3, res=300, units="in")
-  grid.draw(p1)
-  dev.off()
+grid.draw(p1)
+dev.off()
 
 #upset  
 
